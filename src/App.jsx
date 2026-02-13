@@ -424,11 +424,20 @@ const BCSCommandCenter = () => {
 
   // Client Dashboard
   if (view === 'client-dashboard') {
+    const [expandedAreas, setExpandedAreas] = useState({});
     const clientInspections = getClientInspections();
     const recentInspections = clientInspections.slice(0, 10);
     const avgScore = clientInspections.length > 0 
       ? clientInspections.reduce((sum, i) => sum + i.score, 0) / clientInspections.length 
       : 0;
+
+    const toggleArea = (inspectionId, areaIndex) => {
+      const key = `${inspectionId}-${areaIndex}`;
+      setExpandedAreas(prev => ({
+        ...prev,
+        [key]: !prev[key]
+      }));
+    };
 
     return (
       <div className="min-h-screen bg-gray-50">
@@ -531,51 +540,105 @@ const BCSCommandCenter = () => {
                       </div>
                     </div>
 
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-medium text-gray-700">Inspection Details</h4>
+                        <p className="text-xs text-gray-500">Click any area to view photos & notes</p>
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
-                      {inspection.areas.map((area, idx) => (
-                        <div key={idx} className="p-3 bg-gray-50 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-3">
-                              <span className="font-medium text-gray-900">{area.name}</span>
-                              {(area.photos?.length > 0 || area.photo) && (
-                                <span className="flex items-center gap-1 text-xs" style={{ color: BCS_COLORS.cyan }}>
-                                  <Camera size={14} />
-                                  {area.photos?.length > 0 ? `${area.photos.length} Photos` : 'Photo'}
+                      {inspection.areas.map((area, idx) => {
+                        const areaKey = `${inspection.id}-${idx}`;
+                        const isExpanded = expandedAreas[areaKey];
+                        
+                        return (
+                          <div 
+                            key={idx} 
+                            className="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition"
+                            onClick={() => toggleArea(inspection.id, idx)}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3 flex-1">
+                                <span className="font-medium text-gray-900">{area.name}</span>
+                                {(area.photos?.length > 0 || area.photo) && (
+                                  <span className="flex items-center gap-1 text-xs" style={{ color: BCS_COLORS.cyan }}>
+                                    <Camera size={14} />
+                                    {area.photos?.length > 0 ? `${area.photos.length}` : '1'}
+                                  </span>
+                                )}
+                                {area.notes && !isExpanded && (
+                                  <span className="text-xs text-gray-500 truncate max-w-xs">
+                                    {area.notes}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className="font-semibold px-3 py-1 rounded-full text-sm"
+                                  style={{
+                                    backgroundColor: area.score >= 90 ? `${BCS_COLORS.coral}20` : 
+                                                  area.score >= 80 ? `${BCS_COLORS.cyan}20` : 
+                                                  `${BCS_COLORS.orange}20`,
+                                    color: area.score >= 90 ? BCS_COLORS.coral :
+                                           area.score >= 80 ? BCS_COLORS.cyan :
+                                           BCS_COLORS.orange
+                                  }}>
+                                  {area.score}%
                                 </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm text-gray-600">{area.notes}</span>
-                              <span className="font-semibold text-gray-900">{area.score}%</span>
-                            </div>
-                          </div>
-                          {area.photos?.length > 0 && (
-                            <div className="mt-3">
-                              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                {area.photos.map((photo, photoIdx) => (
-                                  <img 
-                                    key={photoIdx}
-                                    src={photo} 
-                                    alt={`${area.name} ${photoIdx + 1}`}
-                                    className="w-full h-32 object-cover rounded-lg border border-gray-300 cursor-pointer hover:opacity-90 transition"
-                                    onClick={() => window.open(photo, '_blank')}
-                                  />
-                                ))}
+                                <span className="text-gray-400 text-xs">
+                                  {isExpanded ? '▼' : '▶'}
+                                </span>
                               </div>
                             </div>
-                          )}
-                          {area.photoData && !area.photos && (
-                            <div className="mt-2">
-                              <img 
-                                src={area.photoData} 
-                                alt={`${area.name}`}
-                                className="w-full max-w-md rounded-lg border border-gray-300 cursor-pointer hover:opacity-90 transition"
-                                onClick={() => window.open(area.photoData, '_blank')}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            
+                            {isExpanded && (
+                              <div className="mt-3 pt-3 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+                                {area.notes && (
+                                  <div className="mb-3">
+                                    <p className="text-sm font-medium text-gray-700 mb-1">Notes:</p>
+                                    <p className="text-sm text-gray-600">{area.notes}</p>
+                                  </div>
+                                )}
+                                {area.photos?.length > 0 && (
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-700 mb-2">
+                                      Photos ({area.photos.length}):
+                                    </p>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                      {area.photos.map((photo, photoIdx) => (
+                                        <img 
+                                          key={photoIdx}
+                                          src={photo} 
+                                          alt={`${area.name} ${photoIdx + 1}`}
+                                          className="w-full h-32 object-cover rounded-lg border border-gray-300 cursor-pointer hover:opacity-90 transition"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            window.open(photo, '_blank');
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {area.photoData && !area.photos && (
+                                  <div>
+                                    <p className="text-sm font-medium text-gray-700 mb-2">Photo:</p>
+                                    <img 
+                                      src={area.photoData} 
+                                      alt={`${area.name}`}
+                                      className="w-full max-w-md rounded-lg border border-gray-300 cursor-pointer hover:opacity-90 transition"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        window.open(area.photoData, '_blank');
+                                      }}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -1126,3 +1189,4 @@ const BCSCommandCenter = () => {
 };
 
 export default BCSCommandCenter;
+
